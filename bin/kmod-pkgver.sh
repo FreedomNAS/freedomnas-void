@@ -3,6 +3,7 @@ set -eu
 
 [ $# -eq 1 ] || { echo "usage: kmod-pkgver.sh <kernel-series>" >&2; exit 2; }
 series="$1"
+root="$(cd "$(dirname "$0")/.." && pwd)"
 
 kernel="$(xbps-query -R -p pkgver "$series" || true)"
 zfs="$(xbps-query -R -p pkgver zfs || true)"
@@ -11,4 +12,4 @@ zfs="$(xbps-query -R -p pkgver zfs || true)"
 
 kver="${kernel#"$series"-}"
 zver="${zfs#zfs-}"
-printf '%s-zfs-%s.%s.%s.%s_1\n' "$series" "${kver%_*}" "${kver##*_}" "${zver%_*}" "${zver##*_}"
+printf '%s-zfs-%s.%s.%s.%s_%s\n' "$series" "${kver%_*}" "${kver##*_}" "${zver%_*}" "${zver##*_}" "$(cat "$root/revision")"

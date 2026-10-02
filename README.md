@@ -18,12 +18,22 @@ recompiles at every kernel update. Here the module is built once, in CI:
 One package per kernel series listed in `series` (today `linux6.18`):
 
 ```
-linux6.18-zfs-<kernel version>.<kernel revision>.<zfs version>.<zfs revision>_1
-linux6.18-zfs-6.18.54.1.2.4.4.1_1   # linux6.18-6.18.54_1 + zfs-2.4.4_1
+linux6.18-zfs-<kernel version>.<kernel revision>.<zfs version>.<zfs revision>_<revision>
+linux6.18-zfs-6.18.54.1.2.4.4.1_2   # linux6.18-6.18.54_1 + zfs-2.4.4_1
 ```
 
+`revision` is the packaging revision: raise it when a change to the package
+itself has to reach machines that already have the module.
+
 It holds `/usr/lib/modules/<kver>/extra/{spl,zfs}.ko`, runs `depmod` after
-install and removal, and depends on the exact kernel and `zfs` it was built
+install and removal, then runs that kernel's hooks in
+`/etc/kernel.d/post-install/` again: `zfs` and, on an update, the kernel build
+their images before this package is configured, so without this the
+initramfs (on plain Void) or the UKIs (on FreedomNAS) would carry the ZFS
+dracut module but no `zfs.ko` and a root on ZFS would not boot. A hook that
+must build its image only once per kernel, like the FreedomNAS UKI one, skips
+while `/usr/lib/modules/<kver>/extra/zfs.ko` is missing. It depends on the
+exact kernel and `zfs` it was built
 against. Void builds without `CONFIG_MODVERSIONS`, so a module loads only in
 that kernel: when Void publishes a newer kernel or `zfs` before the module
 for it is here, xbps refuses the update ("breaks installed pkg") and the

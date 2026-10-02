@@ -31,12 +31,21 @@ dest="$(mktemp -d)"
 trap 'rm -rf "$dest"' EXIT
 install -d "$dest$extra"
 install -m 644 "$extra/spl.ko" "$extra/zfs.ko" "$dest$extra/"
+# zfs regenerates the initramfs before this package is configured, and on an
+# update the kernel runs its hooks before it too, so the images they build
+# get zfs's dracut module without zfs.ko: run the kernel's post-install hooks
+# again here (the initramfs on plain Void, the UKIs on FreedomNAS).
 for script in INSTALL REMOVE; do
     cat > "$dest/$script" <<EOF
 #!/bin/sh
-case "\$1" in
-post) [ -d usr/lib/modules/$kver/kernel ] && depmod -a $kver || : ;;
-esac
+[ "\$1" = post ] || exit 0
+[ "$script" = REMOVE ] && [ "\$4" = yes ] && exit 0
+[ -d usr/lib/modules/$kver/kernel ] || exit 0
+depmod -a $kver
+for hook in etc/kernel.d/post-install/*; do
+    [ -x "\$hook" ] && "\$hook" $series $kver
+done
+exit 0
 EOF
     chmod 755 "$dest/$script"
 done
