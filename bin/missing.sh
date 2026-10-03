@@ -14,4 +14,9 @@ for series in $(cat "$root/series"); do
         *) echo "$file is not published" >&2; missing="$missing $series" ;;
     esac
 done
+file="freedomnas-samba-conf-$(cat "$root/samba/version").x86_64.xbps"
+case "$(curl -s -o /dev/null -w '%{http_code}' -r 0-0 "$BASE/$file")" in
+    200|206) echo "$file is published" >&2 ;;
+    *) echo "$file is not published" >&2; missing="$missing samba-conf" ;;
+esac
 echo "${missing# }"

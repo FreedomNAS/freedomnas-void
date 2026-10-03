@@ -25,7 +25,7 @@ jobs:
       - name: Check out freedomnas-void
         run: git clone --depth 1 --branch "$GITHUB_REF_NAME" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" src
 
-      - name: Look for kernels without a published module
+      - name: Look for packages not published yet
         id: missing
         run: echo "missing=$(sh src/bin/missing.sh)" >> "$GITHUB_OUTPUT"
 
@@ -45,12 +45,15 @@ jobs:
       - name: Check out freedomnas-void
         run: git clone --depth 1 --branch "$GITHUB_REF_NAME" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" src
 
-      - name: Build the modules
+      - name: Build the missing packages
         env:
           MISSING: ${{ needs.check.outputs.missing }}
         run: |
-          for series in $MISSING; do
-            sh src/bin/build-kmod.sh "$series" "$PWD/src/out"
+          for item in $MISSING; do
+            case "$item" in
+              samba-conf) sh src/bin/build-samba-conf.sh "$PWD/src/out" ;;
+              *) sh src/bin/build-kmod.sh "$item" "$PWD/src/out" ;;
+            esac
           done
 
       - name: Publish

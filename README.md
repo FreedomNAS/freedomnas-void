@@ -1,8 +1,8 @@
 # freedomnas-void
 
 The OpenZFS kernel modules for the Void edition of FreedomNAS, built for
-Void's own kernel and published as a signed xbps repository in Codeberg's
-generic package registry.
+Void's own kernel, and its Samba configuration, published as a signed xbps
+repository in Codeberg's generic package registry.
 
 Void ships OpenZFS as `zfs`, whose module is built by DKMS on the machine
 itself, which pulls `dkms`, `gcc` and the kernel headers onto the NAS and
@@ -43,6 +43,25 @@ Install the series package (`linux6.18`), not the `linux` meta package: when
 Void moves `linux` to a new series, its kernel would get no module until the
 series is added to `series`.
 
+### freedomnas-samba-conf
+
+```
+freedomnas-samba-conf-<version>   # samba/version, e.g. 1.0_1
+```
+
+Void's `samba` installs Samba's example `smb.conf`, with a writable `[homes]`
+share and `[printers]`. FreedomNAS creates every share as a usershare, so it
+needs only the `[global]` settings in `samba/smb.conf`.
+
+`/etc/samba/smb.conf` belongs to `samba` as a configuration file, and xbps
+refuses two packages owning one file: the package ships ours as
+`/usr/share/freedomnas/samba/smb.conf`, depends on `samba`, and its INSTALL
+script copies it over Void's, kept as `/etc/samba/smb.conf.void`. When `samba`
+is updated, xbps finds the file changed, keeps it, and writes Void's as
+`smb.conf.new-<version>`. Removing the package puts Void's back. Raise
+`samba/version` to ship a new `smb.conf`: the INSTALL script replaces an older
+one of ours.
+
 ## CI
 
 `.forgejo/workflows/publish-kmod.yml` runs every hour on Codeberg's hosted
@@ -50,8 +69,8 @@ runners, in the `ghcr.io/void-linux/void-glibc` container:
 
 | Job | Runner | What |
 |-----|--------|------|
-| `check` | `codeberg-tiny-lazy` | `bin/missing.sh`: the series whose module for Void's current kernel and `zfs` is not in the registry |
-| `build` | `codeberg-medium` | only when one is missing: `bin/build-kmod.sh` per series, then `bin/publish-codeberg.sh` |
+| `check` | `codeberg-tiny-lazy` | `bin/missing.sh`: the series whose module for Void's current kernel and `zfs` is not in the registry, and `samba-conf` when `freedomnas-samba-conf` at `samba/version` is not |
+| `build` | `codeberg-medium` | only when one is missing: `bin/build-kmod.sh` per series, `bin/build-samba-conf.sh` for `samba-conf`, then `bin/publish-codeberg.sh` |
 
 A build takes about three minutes on four CPUs. Secrets (organisation
 level): `PACKAGE_REGISTRY_USER`, `PACKAGE_REGISTRY_TOKEN` (package scope)
@@ -63,6 +82,7 @@ Inside a Void container, as root:
 
 ```sh
 sh bin/build-kmod.sh linux6.18 out
+sh bin/build-samba-conf.sh out
 CODEBERG_USER=<user> CODEBERG_TOKEN=<token> VOID_SIGNING_KEY_FILE=<key.pem> sh bin/publish-codeberg.sh
 ```
 
