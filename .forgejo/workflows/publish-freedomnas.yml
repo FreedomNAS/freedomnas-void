@@ -12,7 +12,10 @@ on:
     inputs:
       ref:
         description: "main (newest release tag) or dev"
-        required: true
+        type: choice
+        options:
+          - dev
+          - main
         default: dev
   schedule:
     - cron: "47 4 * * *"
