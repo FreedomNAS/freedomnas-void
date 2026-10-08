@@ -1,7 +1,7 @@
 # freedomnas-void
 
-The OpenZFS kernel modules for the Void edition of FreedomNAS, built for
-Void's own kernel, and its Samba configuration, published as a signed xbps
+The FreedomNAS packages for Void, the OpenZFS kernel modules built for
+Void's own kernel, and the Samba configuration, published as a signed xbps
 repository in Codeberg's generic package registry.
 
 Void ships OpenZFS as `zfs`, whose module is built by DKMS on the machine
@@ -62,6 +62,32 @@ is updated, xbps finds the file changed, keeps it, and writes Void's as
 `samba/version` to ship a new `smb.conf`: the INSTALL script replaces an older
 one of ours.
 
+### freedomnas-core, -profiles, -docs, -webui, -installer
+
+```
+freedomnas-core-0.9.11_1                   # release, from the vX.Y.Z tag
+freedomnas-core-0.9.11.20261008164152_1    # snapshot, commit date and time (UTC)
+```
+
+`bin/build-freedomnas.sh` builds them from checkouts of the component
+repositories, laid out as the .deb and the FreeBSD package lay them out
+under `/usr/lib/freedomnas` (freedomnas-profiles' `paths.install_root`);
+`bin/version.sh` takes the version from each component's
+`debian/changelog`. xbps refuses `+` and `-` in a version, so a snapshot
+appends its stamp as one more number: `0.9.11.<stamp>` sorts after
+`0.9.11` and below `0.9.12`. They are `noarch`. freedomnas-core's `.pth`
+lives in the site-packages of the Python it was built with, so it depends
+on that minor version (`python3>=3.14_1<3.15_1`): a new Python on Void waits
+for a rebuild. freedomnas-installer carries `CHANNEL`: `main` in a release,
+`dev` in a snapshot. The documentation is built with mkdocs from
+freedomnas-docs' `requirements.txt` in a virtual environment, since Void
+does not package it.
+
+The installer installs the first four (installer-void.json's
+`installer_meta.core_packages` and packages/core.json) from the group of its
+channel: `/etc/xbps.d/10-freedomnas.conf` names `freedomnas-void/main` or
+`freedomnas-void/dev`.
+
 ## CI
 
 `.forgejo/workflows/publish-kmod.yml` runs every hour on Codeberg's hosted
@@ -71,6 +97,15 @@ runners, in the `ghcr.io/void-linux/void-glibc` container:
 |-----|--------|------|
 | `check` | `codeberg-tiny-lazy` | `bin/missing.sh`: the series whose module for Void's current kernel and `zfs` is not in the registry, and `samba-conf` when `freedomnas-samba-conf` at `samba/version` is not |
 | `build` | `codeberg-medium` | only when one is missing: `bin/build-kmod.sh` per series, `bin/build-samba-conf.sh` for `samba-conf`, then `bin/publish-codeberg.sh` |
+
+Both groups, `dev` and `main`, get every module and Samba configuration:
+images and systems on the main channel read `main`.
+
+`.forgejo/workflows/publish-freedomnas.yml` builds the FreedomNAS packages,
+by hand with `ref` (`main`: the newest `vX.Y.Z` tag of freedomnas-core, into
+the `main` group; `dev`: snapshots into `dev`) and every night for `dev`.
+A version already published is skipped, and `bin/publish-codeberg.sh`
+removes from the registry what the new index replaced.
 
 A build takes about three minutes on four CPUs. Secrets (organisation
 level): `PACKAGE_REGISTRY_USER`, `PACKAGE_REGISTRY_TOKEN` (package scope)
@@ -83,6 +118,7 @@ Inside a Void container, as root:
 ```sh
 sh bin/build-kmod.sh linux6.18 out
 sh bin/build-samba-conf.sh out
+SNAPSHOT=1 sh bin/build-freedomnas.sh <dir with the component checkouts> out
 CODEBERG_USER=<user> CODEBERG_TOKEN=<token> VOID_SIGNING_KEY_FILE=<key.pem> sh bin/publish-codeberg.sh
 ```
 

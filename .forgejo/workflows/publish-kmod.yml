@@ -5,9 +5,8 @@ on:
   schedule:
     - cron: "23 * * * *"
 
-env:
-  GROUP: ${{ github.ref_name == 'main' && 'main' || 'dev' }}
-
+# The modules and the Samba configuration go to both groups: images and
+# systems on the main channel read `main`, the others `dev`.
 jobs:
   check:
     runs-on: codeberg-tiny-lazy
@@ -27,7 +26,9 @@ jobs:
 
       - name: Look for packages not published yet
         id: missing
-        run: echo "missing=$(sh src/bin/missing.sh)" >> "$GITHUB_OUTPUT"
+        run: |
+          missing="$( (GROUP=dev sh src/bin/missing.sh; GROUP=main sh src/bin/missing.sh) | tr ' ' '\n' | sort -u | tr '\n' ' ')"
+          echo "missing=${missing% }" >> "$GITHUB_OUTPUT"
 
   build:
     needs: check
@@ -64,5 +65,7 @@ jobs:
         run: |
           umask 077
           printf '%s\n' "$VOID_SIGNING_KEY" > /tmp/void-signing-key.pem
-          VOID_SIGNING_KEY_FILE=/tmp/void-signing-key.pem sh src/bin/publish-codeberg.sh
+          for group in dev main; do
+            GROUP=$group VOID_SIGNING_KEY_FILE=/tmp/void-signing-key.pem sh src/bin/publish-codeberg.sh
+          done
           rm -f /tmp/void-signing-key.pem

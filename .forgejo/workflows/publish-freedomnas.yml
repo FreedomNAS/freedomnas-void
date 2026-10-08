@@ -1,0 +1,71 @@
+name: publish-freedomnas
+
+# The FreedomNAS packages for Void: core, profiles, docs, webui, installer.
+#   ref main -> a release, built from the newest vX.Y.Z tag of
+#               freedomnas-core, published to the `main` group as X.Y.Z_1
+#   ref dev  -> snapshots, X.Y.Z.<commit date and time>_1, published to `dev`
+# A version already in the group is skipped, so the nightly run publishes
+# only what changed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "main (newest release tag) or dev"
+        required: true
+        default: dev
+  schedule:
+    - cron: "47 4 * * *"
+
+jobs:
+  publish:
+    runs-on: codeberg-medium
+    container:
+      image: ghcr.io/void-linux/void-glibc:latest
+    defaults:
+      run:
+        shell: sh
+    steps:
+      - name: Install the tooling
+        run: xbps-install -Syu xbps && xbps-install -y curl git python3 findutils
+
+      - name: Check out freedomnas-void
+        run: git clone --depth 1 --branch "$GITHUB_REF_NAME" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" src
+
+      - name: Pick the ref to build
+        env:
+          REF: ${{ inputs.ref || 'dev' }}
+        run: |
+          ref="$REF"
+          group=dev
+          snapshot=1
+          if [ "$ref" = main ]; then
+            ref="$(git ls-remote --tags --refs https://codeberg.org/FreedomNAS/freedomnas-core.git 'v*' \
+              | sed 's|.*refs/tags/||' | grep -E '^v[0-9]+(\.[0-9]+)*$' | sort -V | tail -n 1)"
+            [ -n "$ref" ] || { echo "no release tag on freedomnas-core" >&2; exit 1; }
+            group=main
+            snapshot=
+          fi
+          echo "Building $ref for the $group group"
+          { echo "SRC_REF=$ref"; echo "GROUP=$group"; echo "SNAPSHOT=$snapshot"; } >> "$GITHUB_ENV"
+
+      - name: Check out the components
+        run: |
+          git config --global --add safe.directory '*'
+          for repo in freedomnas-core freedomnas-profiles freedomnas-docs freedomnas-webui freedomnas-installer; do
+            git clone --depth 50 --branch "$SRC_REF" "https://codeberg.org/FreedomNAS/$repo.git" "components/$repo"
+          done
+
+      - name: Build
+        run: sh src/bin/build-freedomnas.sh components "$PWD/out"
+
+      - name: Publish
+        env:
+          CODEBERG_USER: ${{ secrets.PACKAGE_REGISTRY_USER }}
+          CODEBERG_TOKEN: ${{ secrets.PACKAGE_REGISTRY_TOKEN }}
+          VOID_SIGNING_KEY: ${{ secrets.VOID_SIGNING_KEY }}
+        run: |
+          umask 077
+          printf '%s\n' "$VOID_SIGNING_KEY" > /tmp/void-signing-key.pem
+          VOID_SIGNING_KEY_FILE=/tmp/void-signing-key.pem sh src/bin/publish-codeberg.sh "$PWD"/out/freedomnas-*.noarch.xbps
+          rm -f /tmp/void-signing-key.pem

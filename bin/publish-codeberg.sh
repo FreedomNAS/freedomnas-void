@@ -43,14 +43,16 @@ delete() {
 
 index_files() {
     [ -f "$1/$REPODATA" ] || return 0
-    xbps-query -i --repository="$1" -s '' | awk -v a="$ARCH" '{ print $2 "." a ".xbps" }' | sort
+    xbps-query -i --repository="$1" -s '' | awk '{ print $2 }' | while read -r pkgver; do
+        echo "$pkgver.$(xbps-query -i --repository="$1" -R --property=architecture "$pkgver").xbps"
+    done | sort
 }
 
 if [ "$#" -gt 0 ]; then
     PKGS="$*"
 else
     PKGS=""
-    for pkg in "$root"/out/*."$ARCH".xbps; do
+    for pkg in "$root"/out/*."$ARCH".xbps "$root"/out/*.noarch.xbps; do
         [ -f "$pkg" ] && PKGS="$PKGS $pkg"
     done
 fi
