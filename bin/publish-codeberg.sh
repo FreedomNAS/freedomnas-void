@@ -80,7 +80,7 @@ fi
 curl -sf -o "$work/$REPODATA" "$BASE/$REPODATA" || rm -f "$work/$REPODATA"
 index_files "$work" > "$work/before"
 
-xbps-rindex -a $new
+xbps-rindex -f -a $new
 xbps-rindex --sign --signedby "FreedomNAS" --privkey "$VOID_SIGNING_KEY_FILE" "$work"
 xbps-rindex --sign-pkg --privkey "$VOID_SIGNING_KEY_FILE" $new
 index_files "$work" > "$work/after"
