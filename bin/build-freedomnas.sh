@@ -78,6 +78,11 @@ stage_webui() {
     ln -s ../../profiles/assets/supervisor.sh "$1$ROOT/webui/bin/supervisor.sh"
 }
 
+stage_containers() {
+    install -d "$1$ROOT/modules" "$1$ROOT/profiles"
+    cp -R "$2/modules/containers" "$1$ROOT/modules/containers"
+    cp -R "$2/profiles/containers" "$1$ROOT/profiles/containers"
+}
 stage_installer() {
     install -d "$1$ROOT/installer/lib" "$1/usr/bin"
     install -m 755 "$2/setup.py" "$1$ROOT/installer/setup.py"
@@ -98,6 +103,7 @@ for name in $COMPONENTS; do
         *) label="$base+${version#"$base".}"; label="${label%_*}" ;;
     esac
     depver="$base"
+    pkgname="$name"
 
     case "$name" in
     freedomnas-profiles)
@@ -120,24 +126,29 @@ for name in $COMPONENTS; do
         short="Profile-driven FreedomNAS installer"
         deps="freedomnas-core>=$depver freedomnas-profiles>=$depver dialog>=0 gptfdisk>=0 dosfstools>=0 dracut>=0 efibootmgr>=0 parted>=0 curl>=0"
         ;;
+    freedomnas-containers)
+        pkgname=freedomnas-module-containers
+        short="FreedomNAS containers: Docker on ZFS datasets, apps and a catalogue"
+        deps="freedomnas-core>0.9.12_1 freedomnas-webui>0.9.12_1"
+        ;;
     *)
         echo "build-freedomnas.sh: unknown component $name" >&2
         exit 1
         ;;
     esac
 
-    echo "==> $name-$version ($ROOT)"
+    echo "==> $pkgname-$version ($ROOT)"
     stage="$WORK/$name"
     install -d "$stage"
     "stage_${name#freedomnas-}" "$stage" "$src"
     find "$stage" -name __pycache__ -type d -prune -exec rm -rf {} +
     python3 -m compileall -q --invalidation-mode checked-hash -s "$stage" -p / "$stage$ROOT" >/dev/null
     if [ -f "$src/README.md" ]; then
-        install -D -m 644 "$src/README.md" "$stage/usr/share/doc/$name/README.md"
+        install -D -m 644 "$src/README.md" "$stage/usr/share/doc/$pkgname/README.md"
     fi
 
     # shellcheck disable=SC2086
-    ( cd "$OUT" && xbps-create -A noarch -n "$name-$version" -s "$short" -l "MPL-2.0" \
+    ( cd "$OUT" && xbps-create -A noarch -n "$pkgname-$version" -s "$short" -l "MPL-2.0" \
         -H "https://codeberg.org/FreedomNAS/$name" \
         -m "FreedomNAS Team <dev@freedomnas.io>" \
         ${deps:+-D "$deps"} "$stage" )
