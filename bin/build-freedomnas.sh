@@ -83,6 +83,11 @@ stage_containers() {
     cp -R "$2/modules/containers" "$1$ROOT/modules/containers"
     cp -R "$2/profiles/containers" "$1$ROOT/profiles/containers"
 }
+stage_proxy() {
+    install -d "$1$ROOT/modules" "$1$ROOT/profiles"
+    cp -R "$2/modules/proxy" "$1$ROOT/modules/proxy"
+    cp -R "$2/profiles/proxy" "$1$ROOT/profiles/proxy"
+}
 stage_installer() {
     install -d "$1$ROOT/installer/lib" "$1/usr/bin"
     install -m 755 "$2/setup.py" "$1$ROOT/installer/setup.py"
@@ -129,6 +134,11 @@ for name in $COMPONENTS; do
     freedomnas-containers)
         pkgname=freedomnas-module-containers
         short="FreedomNAS containers: Docker on ZFS datasets, apps and a catalogue"
+        deps="freedomnas-core>0.9.12_1 freedomnas-webui>0.9.12_1"
+        ;;
+    freedomnas-proxy)
+        pkgname=freedomnas-module-proxy
+        short="FreedomNAS reverse proxy: Caddy with HTTPS for every web app"
         deps="freedomnas-core>0.9.12_1 freedomnas-webui>0.9.12_1"
         ;;
     *)

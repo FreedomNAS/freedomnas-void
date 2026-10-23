@@ -65,7 +65,7 @@ jobs:
       - name: Check out the community modules
         run: |
           modules=""
-          for repo in freedomnas-containers; do
+          for repo in freedomnas-containers freedomnas-proxy; do
             url="https://codeberg.org/FreedomNAS/$repo.git"
             ref=dev
             if [ "$GROUP" = main ]; then
