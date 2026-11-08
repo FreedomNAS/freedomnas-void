@@ -134,12 +134,12 @@ for name in $COMPONENTS; do
     freedomnas-containers)
         pkgname=freedomnas-module-containers
         short="FreedomNAS containers: Docker on ZFS datasets, apps and a catalogue"
-        deps="freedomnas-core>0.9.12_1 freedomnas-webui>0.9.12_1"
+        deps="freedomnas-core>0.9.12_1 freedomnas-webui>0.9.12_1 docker>=0 docker-compose>=0 containerd>=0"
         ;;
     freedomnas-proxy)
         pkgname=freedomnas-module-proxy
         short="FreedomNAS reverse proxy: Caddy with HTTPS for every web app"
-        deps="freedomnas-core>0.9.12_1 freedomnas-webui>0.9.12_1"
+        deps="freedomnas-core>0.9.12_1 freedomnas-webui>0.9.12_1 caddy>=0 libcap-progs>=0 lego>=0"
         ;;
     *)
         echo "build-freedomnas.sh: unknown component $name" >&2
