@@ -2,7 +2,7 @@
 
 The FreedomNAS packages for Void, the OpenZFS kernel modules built for
 Void's own kernel, and the Samba configuration, published as a signed xbps
-repository in Codeberg's generic package registry.
+repository in this GitHub repository's releases.
 
 Void ships OpenZFS as `zfs`, whose module is built by DKMS on the machine
 itself, which pulls `dkms`, `gcc` and the kernel headers onto the NAS and
@@ -85,31 +85,36 @@ does not package it.
 
 The installer installs the first four (installer-void.json's
 `installer_meta.core_packages` and packages/core.json) from the group of its
-channel: `/etc/xbps.d/10-freedomnas.conf` names `freedomnas-void/main` or
-`freedomnas-void/dev`.
+channel: `/etc/xbps.d/10-freedomnas.conf` names the release `xbps-main` or
+`xbps-dev`.
 
 ## CI
 
-`.forgejo/workflows/publish-kmod.yml` runs every hour on Codeberg's hosted
-runners, in the `ghcr.io/void-linux/void-glibc` container:
+The repository is kept as the assets of this GitHub repository's releases:
+`xbps-dev` and `xbps-main` (ADR-003 in freedomnas-specs).
 
-| Job | Runner | What |
-|-----|--------|------|
-| `check` | `codeberg-tiny-lazy` | `bin/missing.sh`: the series whose module for Void's current kernel and `zfs` is not in the registry, and `samba-conf` when `freedomnas-samba-conf` at `samba/version` is not |
-| `build` | `codeberg-medium` | only when one is missing: `bin/build-kmod.sh` per series, `bin/build-samba-conf.sh` for `samba-conf`, then `bin/publish-codeberg.sh` |
+`.github/workflows/publish-kmod.yml` runs every hour, on every push to `dev`
+and by hand, in the `ghcr.io/void-linux/void-glibc` container:
 
-Both groups, `dev` and `main`, get every module and Samba configuration:
-images and systems on the main channel read `main`.
+| Job | What |
+|-----|------|
+| `check` | `bin/missing.sh`: the series whose module for Void's current kernel and `zfs` is not in the release, and `samba-conf` when `freedomnas-samba-conf` at `samba/version` is not |
+| `build` | only when one is missing: `bin/build-kmod.sh` per series, `bin/build-samba-conf.sh` for `samba-conf`, then `bin/publish-github.sh` |
 
-`.forgejo/workflows/publish-freedomnas.yml` builds the FreedomNAS packages,
-by hand with `ref` (`main`: the newest `vX.Y.Z` tag of freedomnas-core, into
-the `main` group; `dev`: snapshots into `dev`) and every night for `dev`.
-A version already published is skipped, and `bin/publish-codeberg.sh`
-removes from the registry what the new index replaced.
+Both releases, `xbps-dev` and `xbps-main`, get every module and Samba
+configuration: images and systems on the main channel read `xbps-main`.
 
-A build takes about three minutes on four CPUs. Secrets (organisation
-level): `PACKAGE_REGISTRY_USER`, `PACKAGE_REGISTRY_TOKEN` (package scope)
-and `VOID_SIGNING_KEY`, the PEM RSA key the repository is signed with.
+`.github/workflows/publish-freedomnas.yml` builds the FreedomNAS packages
+with `ref` (`main`: the newest `vX.Y.Z` tag of freedomnas-core, into
+`xbps-main`; `dev`: snapshots into `xbps-dev`). `gather-pushes` starts it
+ten minutes after the last push to a component (see freedomnas-deb's
+`docs/ci-setup.md`); it also runs every night and by hand. A version
+already published is skipped, and `bin/publish-github.sh` removes from the
+release what the new index replaced.
+
+A build takes about three minutes. The organisation secret
+`VOID_SIGNING_KEY` is the PEM RSA key the repository is signed with. The
+Forgejo workflows under `.forgejo/` are switched off.
 
 ## Building
 
@@ -119,17 +124,17 @@ Inside a Void container, as root:
 sh bin/build-kmod.sh linux6.18 out
 sh bin/build-samba-conf.sh out
 SNAPSHOT=1 sh bin/build-freedomnas.sh <dir with the component checkouts> out
-CODEBERG_USER=<user> CODEBERG_TOKEN=<token> VOID_SIGNING_KEY_FILE=<key.pem> sh bin/publish-codeberg.sh
+GH_TOKEN=<token> VOID_SIGNING_KEY_FILE=<key.pem> sh bin/publish-github.sh
 ```
 
 `GROUP` is the channel (`dev` by default, `main` for releases). A package
 already in the channel is skipped; a package replaced in the index by a
-newer one is deleted from the registry.
+newer one is deleted from the release.
 
 ## On the NAS
 
 ```
-https://codeberg.org/api/packages/FreedomNAS/generic/freedomnas-void/dev
+https://github.com/FreedomNAS/freedomnas-void/releases/download/xbps-dev
 ```
 
 The repository is signed by `FreedomNAS`; `keys/` holds the public key as the
