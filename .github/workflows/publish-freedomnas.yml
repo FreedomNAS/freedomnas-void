@@ -1,0 +1,111 @@
+name: publish-freedomnas
+
+# The FreedomNAS packages for Void: core, profiles, docs, webui, installer
+# and the community modules, published as a signed xbps repository in this
+# repository's releases (bin/publish-github.sh).
+#   ref main -> a release, built from the newest vX.Y.Z tag of
+#               freedomnas-core, published to xbps-main as X.Y.Z_1
+#   ref dev  -> snapshots, X.Y.Z.<commit date and time>_1, to xbps-dev
+# A package already in the release is not uploaded again.
+#
+# Started by gather-pushes ten minutes after the last push to a component,
+# every day as a safety net, or by hand.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "main (newest release tag) or dev"
+        type: choice
+        options:
+          - dev
+          - main
+        default: dev
+  schedule:
+    - cron: "47 4 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-${{ inputs.ref || 'dev' }}
+  cancel-in-progress: false
+
+env:
+  ORG_URL: https://github.com/FreedomNAS
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/void-linux/void-glibc:latest
+    defaults:
+      run:
+        shell: sh
+    steps:
+      - name: Install the tooling
+        run: xbps-install -Syu xbps && xbps-install -y curl git python3 findutils github-cli
+
+      - name: Check out freedomnas-void
+        run: git clone --depth 1 --branch "$GITHUB_REF_NAME" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" src
+
+      - name: Pick the ref to build
+        env:
+          REF: ${{ inputs.ref || 'dev' }}
+        run: |
+          ref="$REF"
+          group=dev
+          snapshot=1
+          if [ "$ref" = main ]; then
+            ref="$(git ls-remote --tags --refs "$ORG_URL/freedomnas-core.git" 'v*' \
+              | sed 's|.*refs/tags/||' | grep -E '^v[0-9]+(\.[0-9]+)*$' | sort -V | tail -n 1)"
+            [ -n "$ref" ] || { echo "no release tag on freedomnas-core" >&2; exit 1; }
+            group=main
+            snapshot=
+          fi
+          echo "Building $ref for xbps-$group"
+          { echo "SRC_REF=$ref"; echo "GROUP=$group"; echo "SNAPSHOT=$snapshot"; } >> "$GITHUB_ENV"
+
+      - name: Check out the components
+        run: |
+          git config --global --add safe.directory '*'
+          for repo in freedomnas-core freedomnas-profiles freedomnas-docs freedomnas-webui freedomnas-installer; do
+            git clone --depth 50 --branch "$SRC_REF" "$ORG_URL/$repo.git" "components/$repo"
+          done
+
+      # Community modules have versions of their own: dev builds their dev
+      # branch, main their own newest release tag, and a module with no tag
+      # yet is left out of main.
+      - name: Check out the community modules
+        run: |
+          modules=""
+          for repo in freedomnas-containers freedomnas-proxy; do
+            url="$ORG_URL/$repo.git"
+            ref=dev
+            if [ "$GROUP" = main ]; then
+              ref="$(git ls-remote --tags --refs "$url" 'v*' \
+                | sed 's|.*refs/tags/||' | grep -E '^v[0-9]+(\.[0-9]+)*$' | sort -V | tail -n 1)"
+              [ -n "$ref" ] || { echo "$repo has no release tag yet: not built for main"; continue; }
+            fi
+            echo "Building $repo at $ref"
+            git clone --depth 50 --branch "$ref" "$url" "components/$repo"
+            modules="$modules $repo"
+          done
+          echo "MODULES=$modules" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: |
+          sh src/bin/build-freedomnas.sh components "$PWD/out"
+          [ -z "$MODULES" ] || sh src/bin/build-freedomnas.sh components "$PWD/out" $MODULES
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VOID_SIGNING_KEY: ${{ secrets.VOID_SIGNING_KEY }}
+        run: |
+          [ -n "$VOID_SIGNING_KEY" ] || { echo "the VOID_SIGNING_KEY secret is not set" >&2; exit 1; }
+          umask 077
+          printf '%s\n' "$VOID_SIGNING_KEY" > /tmp/void-signing-key.pem
+          VOID_SIGNING_KEY_FILE=/tmp/void-signing-key.pem sh src/bin/publish-github.sh "$PWD"/out/freedomnas-*.noarch.xbps
+          rm -f /tmp/void-signing-key.pem

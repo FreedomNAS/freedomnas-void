@@ -7,6 +7,7 @@ name: publish-freedomnas
 # A version already in the group is skipped, so the nightly run publishes
 # only what changed.
 
+# Switched off: the packages are built on GitHub (.github/workflows/).
 on:
   workflow_dispatch:
     inputs:
@@ -17,8 +18,6 @@ on:
           - dev
           - main
         default: dev
-  schedule:
-    - cron: "47 4 * * *"
 
 jobs:
   publish:

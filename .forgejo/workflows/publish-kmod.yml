@@ -1,9 +1,8 @@
 name: publish-kmod
 
+# Switched off: the packages are built on GitHub (.github/workflows/).
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "23 * * * *"
 
 # The modules and the Samba configuration go to both groups: images and
 # systems on the main channel read `main`, the others `dev`.

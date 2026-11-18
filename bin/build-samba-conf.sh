@@ -45,7 +45,7 @@ cd "$out"
 xbps-create -A x86_64 -n "$pkgver" \
     -s "FreedomNAS Samba configuration: global settings and usershares only" \
     -l "MPL-2.0" \
-    -H "https://codeberg.org/FreedomNAS/freedomnas-void" \
+    -H "https://github.com/FreedomNAS/freedomnas-void" \
     -D "samba>=0" \
     "$dest"
 echo "build-samba-conf.sh: $out/$pkgver.x86_64.xbps"

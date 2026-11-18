@@ -1,0 +1,36 @@
+name: gather-pushes
+
+# The component repositories send a component-pushed dispatch on every push.
+# Pushes come in bursts, several repositories at a time, so each dispatch
+# waits ten minutes and a newer one of the same channel cancels the wait:
+# publish-freedomnas starts once, ten minutes after the last push, and builds
+# the newest commit of every component.
+
+on:
+  repository_dispatch:
+    types: [component-pushed]
+
+permissions:
+  actions: write
+
+concurrency:
+  group: gather-pushes-${{ github.event.client_payload.ref == 'main' && 'main' || 'dev' }}
+  cancel-in-progress: true
+
+jobs:
+  wait:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Wait for the rest of the burst
+        env:
+          PUSHED_REPO: ${{ github.event.client_payload.repository }}
+          PUSHED_SHA: ${{ github.event.client_payload.sha }}
+        run: |
+          echo "Pushed: $PUSHED_REPO $PUSHED_SHA"
+          sleep 600
+
+      - name: Start publish-packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF: ${{ github.event.client_payload.ref == 'main' && 'main' || 'dev' }}
+        run: gh workflow run publish-freedomnas.yml -R "$GITHUB_REPOSITORY" -f ref="$REF"

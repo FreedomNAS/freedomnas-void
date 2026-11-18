@@ -55,7 +55,7 @@ cd "$out"
 xbps-create -A x86_64 -n "$pkgver" \
     -s "OpenZFS ${zver%_*} modules for $kernel" \
     -l "CDDL-1.0" \
-    -H "https://codeberg.org/FreedomNAS/freedomnas-void" \
+    -H "https://github.com/FreedomNAS/freedomnas-void" \
     -D "$kernel $zfs kmod>=0" \
     "$dest"
 echo "build-kmod.sh: $out/$pkgver.x86_64.xbps"

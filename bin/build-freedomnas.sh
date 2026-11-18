@@ -159,7 +159,7 @@ for name in $COMPONENTS; do
 
     # shellcheck disable=SC2086
     ( cd "$OUT" && xbps-create -A noarch -n "$pkgname-$version" -s "$short" -l "MPL-2.0" \
-        -H "https://codeberg.org/FreedomNAS/$name" \
+        -H "https://github.com/FreedomNAS/$name" \
         -m "FreedomNAS Team <dev@freedomnas.io>" \
         ${deps:+-D "$deps"} "$stage" )
 done
