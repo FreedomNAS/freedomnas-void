@@ -1,4 +1,5 @@
 name: publish-freedomnas
+run-name: ${{ github.workflow }} (${{ inputs.ref || 'dev' }})
 
 # The FreedomNAS packages for Void: core, profiles, docs, webui, installer
 # and the community modules, published as a signed xbps repository in this
