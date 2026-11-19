@@ -43,6 +43,9 @@ jobs:
           echo "missing=${missing% }" >> "$GITHUB_OUTPUT"
 
   build:
+    concurrency:
+      group: xbps-repodata
+      cancel-in-progress: false
     needs: check
     if: needs.check.outputs.missing != ''
     runs-on: ubuntu-24.04

@@ -37,6 +37,9 @@ env:
 
 jobs:
   publish:
+    concurrency:
+      group: xbps-repodata
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     container:
       image: ghcr.io/void-linux/void-glibc:latest

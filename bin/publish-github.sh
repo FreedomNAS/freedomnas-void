@@ -4,9 +4,10 @@
 #
 #   https://github.com/FreedomNAS/freedomnas-void/releases/download/xbps-dev
 #
-# Only packages the release does not hold yet are signed and uploaded; the
-# repodata is rewritten with xbps-rindex, and the packages it no longer lists
-# are deleted.
+# Only packages the repodata does not list yet are signed and uploaded (a
+# file uploaded but missing from the repodata is added again); the repodata
+# is rewritten with xbps-rindex, and the packages it no longer lists are
+# deleted.
 #
 #   GH_TOKEN=<token> GROUP=dev|main VOID_SIGNING_KEY_FILE=<key.pem> sh bin/publish-github.sh [<package>...]
 set -eu
@@ -67,10 +68,13 @@ else
 fi
 [ -n "$PKGS" ] || { echo "publish-github.sh: no package in out/" >&2; exit 1; }
 
+if published "$REPODATA"; then curl -sfL -o "$work/$REPODATA" "$BASE/$REPODATA"; fi
+index_files "$work" > "$work/before"
+
 new=""
 for pkg in $PKGS; do
     name="$(basename "$pkg")"
-    if published "$name"; then
+    if grep -qxF "$name" "$work/before"; then
         echo "==> $name is already published"
         continue
     fi
@@ -85,9 +89,6 @@ if [ -z "$new" ]; then
     echo "Nothing new to publish to $BASE."
     exit 0
 fi
-
-if published "$REPODATA"; then curl -sfL -o "$work/$REPODATA" "$BASE/$REPODATA"; fi
-index_files "$work" > "$work/before"
 
 xbps-rindex -f -a $new
 xbps-rindex --sign --signedby "FreedomNAS" --privkey "$VOID_SIGNING_KEY_FILE" "$work"
