@@ -113,8 +113,7 @@ already published is skipped, and `bin/publish-github.sh` removes from the
 release what the new index replaced.
 
 A build takes about three minutes. The organisation secret
-`VOID_SIGNING_KEY` is the PEM RSA key the repository is signed with. The
-Forgejo workflows under `.forgejo/` are switched off.
+`VOID_SIGNING_KEY` is the PEM RSA key the repository is signed with.
 
 ## Building
 
